@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-use std::io;
 
-/// Read file contents (thin wrapper)
-pub fn read_contents(path: &str) -> io::Result<String> {
-    std::fs::read_to_string(path)
+pub trait Parser<T, U> {
+    type Out;
+
+    fn parse(to_parse: T) -> Self::Out;
 }
 
 /// Parse `.env` file contents into a HashMap<String,String>

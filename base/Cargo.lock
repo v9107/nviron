@@ -5,10 +5,3 @@ version = 4
 [[package]]
 name = "base"
 version = "0.1.0"
-
-[[package]]
-name = "dot-env-reader"
-version = "0.1.0"
-dependencies = [
- "base",
-]

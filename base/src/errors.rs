@@ -1,6 +1,5 @@
 use std::fmt;
 
-/// Centralized error type for the config loader
 #[derive(Debug)]
 pub enum ConfigError {
     Io(std::io::Error),
@@ -52,7 +51,6 @@ impl From<std::io::Error> for ConfigError {
     }
 }
 
-/// Convenience constructor for parse errors (optional)
 impl ConfigError {
     #[allow(dead_code)]
     pub fn parse_err<T: ToString>(key: &str, value: &str, e: T) -> Self {
