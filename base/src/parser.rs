@@ -11,7 +11,7 @@ pub trait Parser<T, U> {
 /// - Skip blank lines and comment lines starting with `#`
 /// - Split on the first `=` only
 /// - Strip surrounding quotes (single or double) from values
-pub fn parse_env_contents(contents: &str) -> HashMap<String, String> {
+pub(crate) fn parse_env_contents(contents: &str) -> HashMap<String, String> {
     let mut map = HashMap::new();
 
     for raw_line in contents.lines() {
