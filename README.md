@@ -8,4 +8,4 @@ Library for working with `.env` files in a type safe way
 - [x] Able to construct a struct from and `.env` fiels
 - [x] Able to add custom parsing logic
 - [ ] Support for Optional Field
-- [ ] Add macros to be able to generate the boilerplate
+- [x] Add macros to be able to generate the boilerplate

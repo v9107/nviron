@@ -35,7 +35,7 @@ pub struct FieldBuilder<'a> {
 impl<'a, U> Parser<FieldBuilder<'a>, U> for FieldBuilder<'a>
 where
     U: Clone + FromStr,
-    <U as FromStr>::Err: ToString,
+    <U as FromStr>::Err: std::fmt::Display,
 {
     type Out = Result<U, ConfigError>;
 
@@ -72,7 +72,7 @@ impl<'a> FieldBuilder<'a> {
     pub fn build<T>(self) -> Result<Field<'a, T>, ConfigError>
     where
         T: Clone + FromStr,
-        <T as FromStr>::Err: ToString,
+        <T as FromStr>::Err: std::fmt::Display,
     {
         Ok(Field {
             key: self.key,
