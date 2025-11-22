@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use base::errors::ConfigError;
-use base::loader::{FileConfigLoader};
+use base::loader::FileConfigLoader;
 use base::required_str;
 use derive::EnvBuilder;
 
@@ -12,7 +12,6 @@ pub struct Settings {
     pub server_env: String,
     pub version: u64,
 }
-
 
 fn main() -> Result<(), ConfigError> {
     let settings = SettingsBuilder::from_file(".env")?;
