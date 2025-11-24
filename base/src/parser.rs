@@ -1,9 +1,16 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 
-pub trait Parser<T, U> {
-    type Out;
+use crate::errors::ConfigError;
 
-    fn parse(to_parse: T) -> Self::Out;
+pub fn parse<T>(value: String) -> Result<T, ConfigError>
+where
+    T: Clone + FromStr,
+    <T as FromStr>::Err: std::fmt::Display,
+{
+    value
+        .parse::<T>()
+        .map_err(|e| ConfigError::parse_err("", value, e))
 }
 
 /// Parse `.env` file contents into a HashMap<String,String>

@@ -1,63 +1,41 @@
 use std::fmt;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum ConfigError {
-    Io(std::io::Error),
-    MissingKey {
-        key: String,
-    },
+    #[error("Some thing went wrong")]
+    Io(#[from] std::io::Error),
+    #[error("Missing key {key:?} or make it optional")]
+    MissingKey { key: String },
+    #[error("Parsing failed for {key:?} due to {err:?}")]
     ParseError {
         key: String,
         value: String,
         err: String,
     },
-    LoadingError {
-        path: String,
-        err: String,
-    },
-}
-
-impl fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ConfigError::Io(err) => write!(f, "I/O error: {}", err),
-            ConfigError::MissingKey { key } => write!(f, "Missing required key '{}'", key),
-            ConfigError::ParseError { key, value, err } => {
-                write!(
-                    f,
-                    "Failed to parse key '{}': value '{}' ({})",
-                    key, value, err
-                )
-            }
-            ConfigError::LoadingError { path, err } => {
-                write!(f, "Failed to load file '{}': {}", path, err)
-            }
-        }
-    }
-}
-
-impl std::error::Error for ConfigError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            ConfigError::Io(e) => Some(e),
-            _ => None,
-        }
-    }
-}
-
-impl From<std::io::Error> for ConfigError {
-    fn from(err: std::io::Error) -> Self {
-        ConfigError::Io(err)
-    }
+    #[error("Failed to load the file from {path:?} due to {err:?}")]
+    LoadingError { path: String, err: String },
 }
 
 impl ConfigError {
-    #[allow(dead_code)]
-    pub fn parse_err<T: ToString>(key: &str, value: &str, e: T) -> Self {
+    pub fn parse_err(key: &str, value: impl ToString, e: impl ToString) -> Self {
         ConfigError::ParseError {
             key: key.to_string(),
             value: value.to_string(),
             err: e.to_string(),
+        }
+    }
+
+    pub fn missing_key_err(key: impl ToString) -> Self {
+        ConfigError::MissingKey {
+            key: key.to_string(),
+        }
+    }
+
+    pub fn loading_err(path: impl ToString, err: impl ToString) -> Self {
+        Self::LoadingError {
+            path: path.to_string(),
+            err: err.to_string(),
         }
     }
 }
