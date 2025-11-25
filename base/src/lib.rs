@@ -63,71 +63,80 @@ mod tests {
     pub struct Settings {
         pub name: String,
         pub server_env: String,
-        pub version: u64,
+        pub last_name: Option<String>,
     }
 
     #[derive(Debug, Default)]
-    pub struct SettingsBuilder<'a> {
-        name: Field<'a, String>,
-        server_env: Field<'a, String>,
-        version: Field<'a, u64>,
+    pub struct SettingsBuilder {
+        name: Field,
+        server_env: Field,
+        last_name: Field,
     }
 
-    impl<'a> SettingsBuilder<'a> {
+    impl SettingsBuilder {
         pub fn new() -> Self {
             Self::default()
         }
 
-        pub fn with_name<S: Into<String>>(mut self, name: S) -> Self {
-            self.name = Field::new("name", name.into());
-            self
+        pub fn with_name(mut self, name_bldr: FieldBuilder) -> Result<Self, ConfigError> {
+            self.name = name_bldr.build()?;
+            Ok(self)
         }
 
-        pub fn with_server_env<S: Into<String>>(mut self, server_env: S) -> Self {
-            self.server_env = Field::new("server_env", server_env.into());
-            self
+        pub fn with_server_env(
+            mut self,
+            server_env_bldr: FieldBuilder,
+        ) -> Result<Self, ConfigError> {
+            self.server_env = server_env_bldr.build()?;
+            Ok(self)
         }
 
-        pub fn with_version(mut self, version: u64) -> Self {
-            self.version = Field::new("version", version);
-            self
+        pub fn with_last_name(mut self, last_name_bldr: FieldBuilder) -> Result<Self, ConfigError> {
+            self.last_name = last_name_bldr.build()?;
+            Ok(self)
         }
 
-        /// Return Result instead of panicking.
         pub fn build(self) -> Result<Settings, ConfigError> {
+            let name = self
+                .name
+                .value()?
+                .ok_or(ConfigError::missing_key_err("name"))?;
+
+            let server_env = self
+                .server_env
+                .value()?
+                .ok_or(ConfigError::missing_key_err("server_env"))?;
+
+            let last_name = self.last_name.value()?;
+
             Ok(Settings {
-                name: self.name.value(),
-                server_env: self.server_env.value(),
-                version: self.version.value(),
+                name,
+                server_env,
+                last_name,
             })
         }
     }
 
-    impl ConfigLoader for SettingsBuilder<'_> {
+    impl ConfigLoader for SettingsBuilder {
         type Out = Settings;
 
         fn from_hash_map(map: HashMap<String, String>) -> Result<Self::Out, ConfigError> {
-            let name = FieldBuilder::new("name")
-                .with_value(required_str(&map, "name")?)
-                .build::<String>()?;
+            let name = FieldBuilder::new("name").with_value(required_str(&map, "name").ok());
 
-            // server_env default handled by builder; treat as optional here
-            let server_env = FieldBuilder::new("server_env")
-                .with_value(
-                    required_str(&map, "server_env").unwrap_or_else(|_| "local".to_lowercase()),
-                )
-                .build::<String>()?;
+            let server_env = FieldBuilder::new("server_env").with_value(
+                required_str(&map, "server_env")
+                    .or_else(|_| Ok::<String, ConfigError>("local".to_string()))
+                    .ok(),
+            );
 
-            println!("{:?}", server_env);
-
-            let version = FieldBuilder::new("version")
-                .with_value(required_str(&map, "version")?)
-                .build::<u64>()?;
+            let last_name = FieldBuilder::new("last_name")
+                .with_optional(true)
+                .with_value(optional_parse(&map, "last_name")?);
 
             SettingsBuilder::new()
-                .with_name(name.value())
-                .with_server_env(server_env.value())
-                .with_version(version.value())
+                .with_name(name)?
+                .with_last_name(last_name)?
+                .with_server_env(server_env)?
                 .build()
         }
     }
@@ -142,7 +151,7 @@ mod tests {
         let settings = SettingsBuilder::from_hash_map(map)?;
         assert_eq!(settings.name, "test");
         assert_eq!(settings.server_env, "local");
-        assert_eq!(settings.version, 42_u64);
+        assert_eq!(settings.last_name, None);
         Ok(())
     }
 }
