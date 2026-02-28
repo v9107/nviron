@@ -107,7 +107,10 @@ mod tests {
                 .value()?
                 .ok_or(ConfigError::missing_key_err("server_env"))?;
 
-            let last_name = self.last_name.value()?;
+            let last_name = self
+                .last_name
+                .value()?
+                .ok_or(ConfigError::missing_key_err("last_name"))?;
 
             Ok(Settings {
                 name,

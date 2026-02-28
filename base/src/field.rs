@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::errors::ConfigError;
-use crate::parser;
+use crate::parser::{self, Parser};
 
 #[derive(Debug, Default)]
 pub struct Field {
@@ -33,14 +33,7 @@ impl Field {
         T: Clone + std::str::FromStr,
         <T as std::str::FromStr>::Err: std::fmt::Display,
     {
-        if self.is_optional() && self.value.is_none() {
-            return Ok(None);
-        }
-
-        match self.value {
-            Some(v) => parser::parse(v).map(Some),
-            None => Err(ConfigError::missing_key_err(self.key)),
-        }
+        self.value.parse_value()
     }
 }
 

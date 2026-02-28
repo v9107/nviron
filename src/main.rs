@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use base::errors::ConfigError;
 use base::loader::FileConfigLoader;
-use base::required_str;
 use derive::EnvBuilder;
 
 /// Example target struct
