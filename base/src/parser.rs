@@ -35,23 +35,23 @@ where
     }
 }
 
-impl<T> Parser<T> for Option<String>
-where
-    T: Clone + FromStr,
-    <T as FromStr>::Err: std::fmt::Display,
-{
-    type Err = ConfigError;
-    type Out = Option<T>;
-
-    fn parse_value(self) -> Result<Self::Out, Self::Err> {
-        if let Some(v) = self {
-            let value: T = v.parse_value()?;
-            Ok(Some(value))
-        } else {
-            Ok(None)
-        }
-    }
-}
+//impl<T> Parser<T> for Option<String>
+//where
+//    T: Clone + FromStr,
+//    <T as FromStr>::Err: std::fmt::Display,
+//{
+//    type Err = ConfigError;
+//    type Out = Option<T>;
+//
+//    fn parse_value(self) -> Result<Self::Out, Self::Err> {
+//        if let Some(v) = self {
+//            let value: T = v.parse_value()?;
+//            Ok(Some(value))
+//        } else {
+//            Ok(None)
+//        }
+//    }
+//}
 
 /// Parse `.env` file contents into a HashMap<String,String>
 /// - Trim whitespace
