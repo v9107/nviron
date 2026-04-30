@@ -1,5 +1,14 @@
-use crate::{errors::ConfigError, parser::parse_env_contents, reader::read_contents};
+use crate::{
+    errors::ConfigError,
+    optional_parse,
+    parser::{parse, parse_env_contents},
+    parser_helper::{parse_optional_result, parse_to_result},
+    reader::read_contents,
+};
+use core::fmt;
 use std::{collections::HashMap, marker::PhantomData, str::FromStr};
+
+mod builder;
 
 /// Version 2
 /// 1. Loader (Loads the config fiels as HashMap<String, String>)
@@ -13,105 +22,105 @@ pub fn hashmap_from_file(path: &'_ str) -> Result<HashMap<String, String>, Confi
     Ok(parse_env_contents(&contents))
 }
 
-pub struct ParsingInfo<T: FromStr> {
+#[derive(Debug)]
+pub struct FieldInfo<T: FromStr> {
     key: String,
+    optional: bool,
+    value: Option<String>,
     _t: PhantomData<T>,
 }
 
-impl<T: FromStr> ParsingInfo<T> {
-    pub fn new(k: impl ToString) -> ParsingInfo<T> {
-        ParsingInfo {
+impl<T: FromStr> FieldInfo<T> {
+    pub fn new(k: impl ToString) -> FieldInfo<T> {
+        FieldInfo {
             key: k.to_string(),
+            optional: false,
+            value: None,
             _t: PhantomData,
         }
     }
+
+    pub fn with_value(self, v: Option<String>) -> Self {
+        FieldInfo { value: v, ..self }
+    }
+}
+struct Optional<T>(pub Option<T>);
+
+trait Reader<T> {
+    fn read(self) -> T;
 }
 
-pub fn parse_v2<T>(hp: &HashMap<String, String>, info: ParsingInfo<T>) -> Result<T, ConfigError>
+impl<T> Reader<T> for T {
+    fn read(self) -> T {
+        self
+    }
+}
+
+impl<T> Reader<Option<T>> for Optional<T> {
+    fn read(self) -> Option<T> {
+        self.0
+    }
+}
+
+pub trait ParserV2: Sized {
+    fn parsev2(key: String, v: Option<String>) -> Result<impl Reader<Self>, ConfigError>;
+}
+
+impl<T> ParserV2 for T
 where
     T: FromStr,
-    T::Err: std::fmt::Display,
+    T::Err: fmt::Display,
 {
-    let v = hp.get(&info.key);
-
-    let v = v.ok_or(ConfigError::missing_key_err(info.key.to_owned()))?;
-    let v = v
-        .parse()
-        .map_err(|err| ConfigError::parse_err(info.key.as_str(), v, err));
-    v
+    fn parsev2(key: String, v: Option<String>) -> Result<impl Reader<Self>, ConfigError> {
+        parse_to_result::<T>(key, v)
+    }
 }
 
-pub fn parse_option<T>(
-    hp: &HashMap<String, String>,
-    info: ParsingInfo<T>,
-) -> Result<Option<T>, ConfigError>
+impl<T> ParserV2 for Optional<T>
 where
     T: FromStr,
-    T::Err: std::fmt::Display,
+    T::Err: fmt::Display,
 {
-    let v = hp.get(&info.key).map(|v| v.to_owned());
-
-    let v = v.map_or(Ok(None), |_| {
-        let r = parse_v2(hp, info);
-        let r = r.map_or(None, Some);
-        Ok(r)
-    });
-
-    v
+    fn parsev2(key: String, v: Option<String>) -> Result<impl Reader<Self>, ConfigError> {
+        let r = parse_optional_result::<T>(key, v)?;
+        Ok(Optional(r))
+    }
 }
+
+//impl<T> ParserV2 for Option<T>
+//{
+//    fn parsev2(key: String, v: Option<String>) -> Result<impl Reader<Self>, ConfigError> {
+//        parse_optional_result(key, v)
+//    }
+//}
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
-    use crate::{
-        errors::ConfigError,
-        v2::{ParsingInfo, parse_option, parse_v2},
-    };
+    use super::*;
 
     #[test]
-    fn test_parse_v2() -> Result<(), ConfigError> {
-        let mut map = HashMap::<String, String>::new();
-        map.insert("name".into(), "test".into());
-        // server_env is omitted -> default "local"
-        map.insert("version".into(), "42".into());
+    fn test_reader() -> Result<(), ConfigError> {
+        let hello = "hello".read();
 
-        let name_info = ParsingInfo::<String>::new("name");
-        let version_info = ParsingInfo::<u32>::new("version");
+        assert_eq!(hello, "hello");
+        Ok(())
+    }
 
-        let name = parse_v2(&map, name_info)?;
-        let version = parse_v2(&map, version_info)?;
+    #[test]
+    fn test_optional() -> Result<(), ConfigError> {
+        let info = FieldInfo::<String>::new("key").with_value(None);
 
-        assert_eq!(name, "test".to_string());
-        assert_eq!(version, 42);
+        let r = Optional::<String>::parsev2(info.key, info.value)?;
+        let r = r.read();
+        assert_eq!(r, None);
 
         Ok(())
     }
 
     #[test]
-    fn test_option_parse_some() -> Result<(), ConfigError> {
-        let mut map = HashMap::<String, String>::new();
-        map.insert("version".into(), "42".into());
-
-        let version_info = ParsingInfo::<u32>::new("version");
-
-        let version = parse_option(&map, version_info)?;
-
-        assert_eq!(version, Some(42));
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_option_parse_none() -> Result<(), ConfigError> {
-        let mut map = HashMap::<String, String>::new();
-        map.insert("name".into(), "test".into());
-
-        let version_info = ParsingInfo::<u32>::new("version");
-
-        let version = parse_option(&map, version_info)?;
-
-        assert_eq!(version, None);
+    fn test_field_parser() -> Result<(), ConfigError> {
+        let v: String = String::parsev2("key".to_string(), Some("value".to_string()))?.read();
+        assert_eq!(v, "value".to_string());
 
         Ok(())
     }

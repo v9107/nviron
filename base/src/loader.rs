@@ -11,7 +11,8 @@ pub trait ConfigLoader: Sized {
 /// Trait providing file-based loading with a default implementation
 pub trait FileConfigLoader: ConfigLoader {
     fn from_file(path: &str) -> Result<Self::Out, ConfigError> {
-        let contents = reader::read_contents(path).map_err(ConfigError::from)?;
+        let contents =
+            reader::read_contents(path).map_err(|err| ConfigError::loading_err(path, err))?;
         let map = parser::parse_env_contents(&contents);
         Self::from_hash_map(map)
     }
