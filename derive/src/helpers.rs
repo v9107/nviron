@@ -1,6 +1,9 @@
+use base::errors::ConfigError;
+use base::parser;
 use proc_macro::{self, Ident, TokenStream};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
+use std::collections::HashMap;
 use syn::{DeriveInput, Visibility, parse_macro_input};
 
 pub(crate) fn create_builder(ast: &DeriveInput) -> TokenStream2 {
@@ -49,10 +52,9 @@ pub(crate) fn impl_builder(ast: &DeriveInput) -> TokenStream2 {
         let ty = &f.ty;
 
         quote! {
-            let #ident = self
+            let #ident: #ty = self
                 .#ident
-                .value()?
-                .ok_or(::base::errors::ConfigError::missing_key_err(#stringify_ident))?;
+                .parse::<#ty>()?;
         }
     });
 
@@ -64,9 +66,9 @@ pub(crate) fn impl_builder(ast: &DeriveInput) -> TokenStream2 {
         let fn_name = format_ident!("with_{}", ident);
 
         quote! {
-            pub fn #fn_name(mut self, #bldr_param: ::base::field::FieldBuilder) -> Result<Self, ::base::errors::ConfigError> {
-                self.#ident = #bldr_param.build()?;
-                Ok(self)
+            pub fn #fn_name(mut self, #bldr_param: ::base::field::FieldBuilder) -> Self {
+                self.#ident = #bldr_param.build();
+                self
             }
         }
     });
@@ -107,7 +109,7 @@ pub(crate) fn loder_impl(ast: &DeriveInput) -> TokenStream2 {
 
         quote! {
             let #field_ident = ::base::field::FieldBuilder::new(#key)
-                .with_value(::base::required_str(&map, #key).ok());
+                .with_value(map.get(#key).map(|s| s.to_owned()));
         }
     });
 
@@ -118,7 +120,7 @@ pub(crate) fn loder_impl(ast: &DeriveInput) -> TokenStream2 {
         let key = syn::LitStr::new(&field_ident.to_string(), field_ident.span());
 
         quote! {
-            .#fn_name(#field_ident)?
+            .#fn_name(#field_ident)
         }
     });
 
