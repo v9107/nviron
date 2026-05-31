@@ -108,7 +108,7 @@ pub(crate) fn loder_impl(ast: &DeriveInput) -> TokenStream2 {
         let key = syn::LitStr::new(&field_ident.to_string(), field_ident.span());
 
         quote! {
-            let #field_ident = ::base::field::FieldBuilder::new(#key)
+            let #field_ident = base::field::FieldBuilder::new(#key)
                 .with_value(map.get(#key).map(|s| s.to_owned()));
         }
     });

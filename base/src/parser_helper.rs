@@ -1,7 +1,7 @@
 use crate::errors::ConfigError;
 use std::str::FromStr;
 
-pub fn parse_required<T>(key: String, value: Option<String>) -> Result<T, ConfigError>
+pub(crate) fn parse_required<T>(key: String, value: Option<String>) -> Result<T, ConfigError>
 where
     T: FromStr,
     T::Err: std::fmt::Display,
@@ -15,7 +15,7 @@ where
     Ok(v)
 }
 
-pub fn parse_option<T>(key: String, value: Option<String>) -> Result<Option<T>, ConfigError>
+pub(crate) fn parse_option<T>(key: String, value: Option<String>) -> Result<Option<T>, ConfigError>
 where
     T: FromStr,
     T::Err: std::fmt::Display,
