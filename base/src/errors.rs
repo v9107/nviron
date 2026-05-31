@@ -1,10 +1,7 @@
-use std::fmt;
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum ConfigError {
-    #[error("Some thing went wrong")]
-    Io(#[from] std::io::Error),
     #[error("Missing key {key:?} or make it optional")]
     MissingKey { key: String },
     #[error("Parsing failed for {key:?} due to {err:?}")]

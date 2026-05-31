@@ -1,13 +1,10 @@
-use std::str::FromStr;
-
 use crate::errors::ConfigError;
-use crate::parser;
+use crate::parser::ParseValue;
 
 #[derive(Debug, Default)]
 pub struct Field {
     key: String,
     value: Option<String>,
-    optional: bool,
 }
 
 impl Field {
@@ -15,39 +12,20 @@ impl Field {
         Self {
             key: key.to_string(),
             value,
-            optional: false,
         }
     }
 
-    pub fn with_optional(mut self, op: bool) -> Self {
-        self.optional = op;
-        self
-    }
-
-    pub fn is_optional(&self) -> bool {
-        self.optional
-    }
-
-    pub fn value<T>(self) -> Result<Option<T>, ConfigError>
+    pub fn parse<T>(self) -> Result<T, ConfigError>
     where
-        T: Clone + std::str::FromStr,
-        <T as std::str::FromStr>::Err: std::fmt::Display,
+        T: ParseValue,
     {
-        if self.is_optional() && self.value.is_none() {
-            return Ok(None);
-        }
-
-        match self.value {
-            Some(v) => parser::parse(v).map(Some),
-            None => Err(ConfigError::missing_key_err(self.key)),
-        }
+        T::parse_value(self.key, self.value)
     }
 }
 
 pub struct FieldBuilder {
     key: String,
     value: Option<String>,
-    optional: bool,
 }
 
 impl FieldBuilder {
@@ -55,7 +33,6 @@ impl FieldBuilder {
         Self {
             key: key.to_string(),
             value: None,
-            optional: false,
         }
     }
 
@@ -64,21 +41,64 @@ impl FieldBuilder {
         self
     }
 
-    pub fn with_optional(mut self, op: bool) -> Self {
-        self.value = None;
-        self.optional = op;
-        self
+    pub fn build(self) -> Field {
+        Field {
+            key: self.key,
+            value: self.value,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_field_parsing_for_required() -> Result<(), ConfigError> {
+        let field = Field::new("key", Some("32".to_string()));
+        let res = field.parse::<u16>()?;
+        assert_eq!(32 as u16, res);
+        Ok(())
     }
 
-    pub fn build(self) -> Result<Field, ConfigError> {
-        if self.value.is_some() || self.optional {
-            return Ok(Field {
-                key: self.key,
-                value: self.value,
-                optional: self.optional,
-            });
-        }
+    #[test]
+    fn test_field_parsing_for_option_field() -> Result<(), ConfigError> {
+        let field = Field::new("key", Some("32".to_string()));
+        let res = field.parse::<Option<u16>>()?;
+        assert_eq!(Some(32 as u16), res);
+        Ok(())
+    }
 
-        Err(ConfigError::missing_key_err(self.key))
+    #[test]
+    fn test_failed_parsing_for_required_field() -> Result<(), ConfigError> {
+        let field = Field::new("key", Some("hello".to_string()));
+        let res = field.parse::<u16>();
+        assert!(res.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_failed_parsing_for_optional_field() -> Result<(), ConfigError> {
+        let field = Field::new("key", Some("hello".to_string()));
+        let res = field.parse::<Option<u16>>();
+        assert!(res.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_missing_value_for_parsing_optional_field() -> Result<(), ConfigError> {
+        let field = Field::new("key", None);
+        let res = field.parse::<Option<u16>>()?;
+        assert!(res.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn test_missing_value_for_parsing_required_field() -> Result<(), ConfigError> {
+        let field = Field::new("key", None);
+        let res = field.parse::<u16>();
+        assert!(res.is_err());
+        Ok(())
     }
 }
